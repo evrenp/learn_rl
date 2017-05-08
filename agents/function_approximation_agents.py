@@ -11,7 +11,9 @@ from sklearn.kernel_approximation import RBFSampler
 # ToDo: refactor for specifc agent
 # ToDo: make feature creation generic to adopt to different envs
 
-class FunctionApproximationAgent(BaseAgent):
+# TODO: make neural net version
+
+class SarsaMaxFunctionApproximationAgent(BaseAgent):
     parameters = ['epsilon', 'gamma', 'feature_creation']
 
     def __init__(self,
@@ -23,7 +25,7 @@ class FunctionApproximationAgent(BaseAgent):
         Args:
             kwargs (dict): kwargs of BaseAgent
         """
-        super(FunctionApproximationAgent, self).__init__(**kwargs)
+        super(SarsaMaxFunctionApproximationAgent, self).__init__(**kwargs)
 
         assert self.action_space.__class__.__name__ == 'Discrete', 'Only works for discrete action space'
         assert self.observation_space.__class__.__name__ == 'Box', 'Only works for Box observation space'

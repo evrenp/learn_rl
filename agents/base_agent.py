@@ -28,24 +28,31 @@ class BaseAgent(object):
 
         self.observation_space = env.observation_space
         self.action_space = env.action_space
+        self.n_states, self.n_actions, self.q = self._get_utils_for_discrete_spaces()
 
-        self.observations = self.max_n_steps * [None]
-        self.actions = self.max_n_steps * [None]
-        self.rewards = np.nan * np.zeros(self.max_n_steps)
+        self.observations, self.actions, self.rewards = self._init_path_variables()
         self.t = None
 
+    def _init_path_variables(self):
+        observations = self.max_n_steps * [None]
+        actions = self.max_n_steps * [None]
+        rewards = np.nan * np.zeros(self.max_n_steps)
+        return observations, actions, rewards
+
+    def _get_utils_for_discrete_spaces(self):
         if self.observation_space.__class__.__name__ == 'Discrete':
-            self.n_states = self.observation_space.n
+            n_states = self.observation_space.n
         else:
-            self.n_states = None
+            n_states = None
         if self.action_space.__class__.__name__ == 'Discrete':
-            self.n_actions = self.action_space.n
+            n_actions = self.action_space.n
         else:
-            self.n_actions = None
-        if (self.n_states is not None) and (self.n_actions is not None):
-            self.q = np.zeros((self.n_states, self.n_actions))
+            n_actions = None
+        if (n_states is not None) and (n_actions is not None):
+            q = np.zeros((n_states, n_actions))
         else:
-            self.q = None
+            q = None
+        return n_states, n_actions, q
 
     def get_parameters(self):
         return {key: getattr(self, key) for key in self.parameters}
@@ -65,9 +72,7 @@ class BaseAgent(object):
         Returns:
             None
         """
-        self.observations = self.max_n_steps * [None]
-        self.actions = self.max_n_steps * [None]
-        self.rewards = np.nan * np.zeros(self.max_n_steps)
+        self.observations, self.actions, self.rewards = self._init_path_variables()
 
     def act(self, observation, reward, done):
         """Selects action at t for moving into observation t+1.
