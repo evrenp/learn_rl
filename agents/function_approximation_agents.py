@@ -10,9 +10,10 @@ from sklearn.kernel_approximation import RBFSampler
 
 
 class FunctionApproximationAgent(BaseAgent):
-    hyper_parameters = ['epsilon', 'gamma']
+    parameters = ['epsilon', 'gamma', 'feature_creation']
 
     def __init__(self,
+                 feature_creation='scaling_and_rbf',
                  **kwargs
                  ):
         """Init
@@ -25,6 +26,8 @@ class FunctionApproximationAgent(BaseAgent):
         assert self.action_space.__class__.__name__ == 'Discrete', 'Only works for discrete action space'
         assert self.observation_space.__class__.__name__ == 'Box', 'Only works for Box observation space'
 
+        assert feature_creation in ['scaling', 'scaling_and_rbf']
+        self.feature_creation = feature_creation
         self.scaler, self.featurizer = self._get_scaler_and_featurizer()
         self.estimators = self._get_estimators()
         self.q_values_of_possible_actions_at_t = np.zeros(self.n_actions)
@@ -57,8 +60,9 @@ class FunctionApproximationAgent(BaseAgent):
         return estimators
 
     def observation_2_features(self, observation):
-        scaled_observation = self.scaler.transform(X=observation.reshape((1, self.observation_n_dim)))
-        features = self.featurizer.transform(scaled_observation)
+        features = self.scaler.transform(X=observation.reshape((1, self.observation_n_dim)))
+        if self.feature_creation == 'scaling_and_rbf':
+            features = self.featurizer.transform(features)
         return features
 
     def predict_q_value(self, observation, action):
