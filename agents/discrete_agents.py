@@ -38,14 +38,14 @@ class SarsaMaxAgent(BaseAgent):
     def learn_at_t_before_action_selection(self):
         if self.t > 0:
             # get index
-            state_t_minus_1 = int(self.observation_path[self.t - 1, 0])
-            action_t_minus_1 = int(self.action_path[self.t - 1, 0])
-            state_t = int(self.observation_path[self.t, 0])
+            state_t_minus_1 = self.observations[self.t - 1]
+            action_t_minus_1 = self.actions[self.t - 1]
+            state_t = self.observations[self.t]
 
             self.q_values_of_possible_actions_at_t = self.q[state_t, :]
 
             # td_target
-            td_target = self.reward_path[self.t] + self.gamma * np.max(self.q_values_of_possible_actions_at_t)
+            td_target = self.rewards[self.t] + self.gamma * np.max(self.q_values_of_possible_actions_at_t)
 
             # prediction_error
             prediction_error = td_target - self.q[state_t_minus_1, action_t_minus_1]
@@ -96,14 +96,13 @@ class MonteCarloAgent(BaseAgent):
 
     def learn_at_last_t_of_episode(self):
 
-        for t, (state, action) in enumerate(
-                zip(self.observation_path[:, 0].astype(int), self.action_path[:, 0].astype(int))):
+        for t, (state, action) in enumerate(zip(self.observations, self.actions)):
 
             # increment counter
             self.state_action_counter[state, action] += 1
 
             # future return target
-            future_return_target = np.sum(self.gamma ** np.arange(len(self.reward_path[t + 1:])) * self.reward_path[t + 1:])
+            future_return_target = np.sum(self.gamma ** np.arange(len(self.rewards[t + 1:])) * self.rewards[t + 1:])
 
             # dynamic learning rate
             alpha = 1. / self.state_action_counter[state, action]
@@ -116,7 +115,7 @@ class MonteCarloAgent(BaseAgent):
 
     def select_action_at_t(self):
         """Select action at time t"""
-        state_t = int(self.observation_path[self.t, 0])
+        state_t = self.observations[self.t]
         return self.select_epsilon_greedy_action_at_t(q_values_of_possible_actions_at_t=self.q[state_t, :])
 
 
@@ -170,16 +169,16 @@ class SarsaLambdaAgent(BaseAgent):
         """action at time t is already defined."""
         if self.t > 0:
             # get index
-            state_t = int(self.observation_path[self.t, 0])
-            action_t = int(self.action_path[self.t, 0])
-            state_t_minus_1 = int(self.observation_path[self.t - 1, 0])
-            action_t_minus_1 = int(self.action_path[self.t - 1, 0])
+            state_t = self.observations[self.t]
+            action_t = self.actions[self.t]
+            state_t_minus_1 = self.observations[self.t - 1]
+            action_t_minus_1 = self.actions[self.t - 1]
 
             # increment eligibility trace
             self.eligibility[state_t_minus_1, action_t_minus_1] += 1
 
             # td_target
-            td_target = self.reward_path[self.t] + self.gamma * self.q[state_t, action_t]
+            td_target = self.rewards[self.t] + self.gamma * self.q[state_t, action_t]
 
             # prediction_error
             prediction_error = td_target - self.q[state_t_minus_1, action_t_minus_1]
@@ -192,5 +191,5 @@ class SarsaLambdaAgent(BaseAgent):
 
     def select_action_at_t(self):
         """Select action at time t"""
-        state_t = int(self.observation_path[self.t, 0])
+        state_t = self.observations[self.t]
         return self.select_epsilon_greedy_action_at_t(q_values_of_possible_actions_at_t=self.q[state_t, :])

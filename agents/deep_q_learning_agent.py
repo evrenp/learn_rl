@@ -43,35 +43,23 @@ class StateProcessor():
         """
         return sess.run(self.output, { self.input_state: state })
 
-from agents.base_agent import BaseAgent
-
-
-class RandomAgent2(BaseAgent):
-    def __init__(self, **kwargs):
-        super(RandomAgent2, self).__init__(**kwargs)
-
-    def reset_before_new_episode(self):
-        pass
-
-    def act(self, observation, reward, done):
-        return self.action_space.sample()
 
 
 if __name__ == '__main__':
 
-    # env = make("Breakout-v0")
-    # # print(env.action_space.sample())
-    # # print('shape of observations:', env.observation_space.sample().shape)
-    # # env._max_episode_steps = 400
-    # agent = RandomAgent2(env=env)
-    # simulation = Simulation(env=env, agent=agent, logger_level='INFO', is_render=True, max_n_steps=5000)
-    # simulation.simulate_episodes(n_episodes=2)
-    # simulation.terminate()
+    env = make("Breakout-v0")
+    # print(env.action_space.sample())
+    # print('shape of observations:', env.observation_space.sample().shape)
+    # env._max_episode_steps = 400
+    agent = RandomAgent(env=env)
+    simulation = Simulation(env=env, agent=agent, logger_level='INFO', is_render=True, max_n_steps=5000)
+    simulation.simulate_episodes(n_episodes=2)
+    simulation.terminate()
 
-    input = tf.placeholder(shape=[3], dtype=tf.uint8)
-    output = 10 * input
-
-    with tf.Session() as session:
-        output_value = session.run(output, {input: np.ones(3)})
-
-    print(output_value)
+    # input = tf.placeholder(shape=[3], dtype=tf.uint8)
+    # output = 10 * input
+    #
+    # with tf.Session() as session:
+    #     output_value = session.run(output, {input: np.ones(3)})
+    #
+    # print(output_value)

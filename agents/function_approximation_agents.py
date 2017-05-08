@@ -27,6 +27,7 @@ class FunctionApproximationAgent(BaseAgent):
 
         assert self.action_space.__class__.__name__ == 'Discrete', 'Only works for discrete action space'
         assert self.observation_space.__class__.__name__ == 'Box', 'Only works for Box observation space'
+        assert len(self.observation_space.sample().shape) == 1
 
         assert feature_creation in ['scaling', 'scaling_and_rbf']
         self.feature_creation = feature_creation
@@ -54,7 +55,7 @@ class FunctionApproximationAgent(BaseAgent):
         estimators = []
         for _ in range(self.n_actions):
             estimator = SGDRegressor(learning_rate="constant")
-            fake_observation = np.zeros(self.observation_n_dim)
+            fake_observation = self.observation_space.sample()
             fake_target = np.zeros(1)
             features = self.observation_2_features(fake_observation)
             estimator.partial_fit(features, fake_target)
@@ -62,7 +63,7 @@ class FunctionApproximationAgent(BaseAgent):
         return estimators
 
     def observation_2_features(self, observation):
-        features = self.scaler.transform(X=observation.reshape((1, self.observation_n_dim)))
+        features = self.scaler.transform(X=observation.reshape((1, -1)))
         if self.feature_creation == 'scaling_and_rbf':
             features = self.featurizer.transform(features)
         return features
@@ -75,17 +76,17 @@ class FunctionApproximationAgent(BaseAgent):
     def learn_at_t_before_action_selection(self):
         if self.t > 0:
             # features for prediction of q at t-1
-            features_at_t_minus_1 = self.observation_2_features(observation=self.observation_path[self.t - 1, :])
+            features_at_t_minus_1 = self.observation_2_features(observation=self.observations[self.t - 1])
 
             self.q_values_of_possible_actions_at_t = np.array(
-                [self.predict_q_value(observation=self.observation_path[self.t, :], action=action) for action
+                [self.predict_q_value(observation=self.observations[self.t], action=action) for action
                  in range(self.n_actions)])
 
             # td_target
-            td_target = self.reward_path[self.t] + self.gamma * np.max(self.q_values_of_possible_actions_at_t)
+            td_target = self.rewards[self.t] + self.gamma * np.max(self.q_values_of_possible_actions_at_t)
 
             # partial fit
-            action_t_minus_1 = int(self.action_path[self.t - 1, 0])
+            action_t_minus_1 = self.actions[self.t - 1]
             self.estimators[action_t_minus_1].partial_fit(X=features_at_t_minus_1, y=np.array([td_target]))
 
     def select_action_at_t(self):

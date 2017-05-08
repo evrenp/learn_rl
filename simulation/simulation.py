@@ -107,9 +107,9 @@ def _parallel_function(env, iter_idx, n_episodes, constructor, kwargs):
 
     for episode_idx in range(n_episodes):
         simulation.simulate_single_episode()
-        df.loc[(agent_id, iter_idx, episode_idx), 'steps_per_episode'] = len(simulation.agent.reward_path)
-        df.loc[(agent_id, iter_idx, episode_idx), 'reward_per_episode'] = np.nansum(simulation.agent.reward_path)
-        df.loc[(agent_id, iter_idx, episode_idx), 'reward_per_step'] = np.nanmean(simulation.agent.reward_path)
+        df.loc[(agent_id, iter_idx, episode_idx), 'steps_per_episode'] = len(simulation.agent.rewards)
+        df.loc[(agent_id, iter_idx, episode_idx), 'reward_per_episode'] = np.nansum(simulation.agent.rewards)
+        df.loc[(agent_id, iter_idx, episode_idx), 'reward_per_step'] = np.nanmean(simulation.agent.rewards)
     simulation.terminate()
     return df
 
