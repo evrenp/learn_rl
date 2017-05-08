@@ -17,7 +17,7 @@ class BaseAgent(object):
         """Init
 
         Args:
-            env ():
+            env (gym.Env): environment
             epsilon (float): epsilon in epsilon-greedy action selection
             gamma (float): discount factor for future rewards
             max_n_steps (int): maximum number of steps per episode
@@ -51,8 +51,6 @@ class BaseAgent(object):
             self.q = np.zeros((self.n_states, self.n_actions))
         else:
             self.q = None
-
-
 
     @staticmethod
     def _get_index_utils(space):
@@ -145,8 +143,11 @@ class BaseAgent(object):
         """Selects action at t for moving into observation at t+1."""
         raise NotImplementedError()
 
-    def select_epsilon_greedy_action_at_t(self):
+    def select_epsilon_greedy_action_at_t(self, q_values_of_possible_actions_at_t):
         """Epsilon-greedy action selection of action at t
+
+        Args:
+            q_values_of_possible_actions_at_t (np.array): q-values of possible actions at t before action selection
 
         Notes:
             - path variables for observation and reward at t are not nan, but action is nan
@@ -159,10 +160,10 @@ class BaseAgent(object):
         Returns:
             action (int): action at time t
         """
-        state_t = int(self.observation_path[self.t, 0])
-        q_values = self.q[state_t, :]
+        assert q_values_of_possible_actions_at_t.shape == (self.n_actions,)
+
         best_action = np.random.choice(
-            np.arange(self.n_actions)[q_values == np.max(q_values)])
+            np.arange(self.n_actions)[q_values_of_possible_actions_at_t == np.max(q_values_of_possible_actions_at_t)])
         pvals = self.epsilon / self.n_actions * np.ones(self.n_actions)
         pvals[best_action] += 1 - self.epsilon
         action = np.argwhere(np.random.multinomial(n=1, pvals=pvals))[0][0]

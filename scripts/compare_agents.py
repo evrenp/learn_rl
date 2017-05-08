@@ -4,7 +4,7 @@ from gym.envs import registry, register
 
 from agents.discrete_agents import SarsaMaxAgent, MonteCarloAgent, SarsaLambdaAgent
 from agents.random_agent import RandomAgent
-from simulation.simulation import Simulation, compare_agents
+from simulation.simulation import compare_agents
 
 import numpy as np
 import random
@@ -25,6 +25,8 @@ constructor_kwargs_list = [
     (SarsaMaxAgent, dict(env=env, epsilon=0.2, gamma=0.8)),
     (SarsaLambdaAgent, dict(env=env, epsilon=0.2, gamma=0.8)),
 ]
-df, fig = compare_agents(env=env, constructor_kwargs_list=constructor_kwargs_list, n_iter=10, n_episodes=300,
+df, fig = compare_agents(env=env, constructor_kwargs_list=constructor_kwargs_list, n_iter=1, n_episodes=300,
                          n_jobs=-1)
 plt.show()
+
+# TODO: main with argparse
