@@ -15,5 +15,5 @@ def test_compare_agents():
         (SarsaMaxAgent, dict(env=env, epsilon=0.2, gamma=0.8)),
         (SarsaLambdaAgent, dict(env=env, epsilon=0.2, gamma=0.8)),
     ]
-    _, _ = compare_agents(env=env, constructor_kwargs_list=constructor_kwargs_list, n_iter=2, n_episodes=10,
+    _, _ = compare_agents(env=env, constructor_kwargs_list=constructor_kwargs_list, n_iter=2, n_episodes=5,
                           n_jobs=-1)

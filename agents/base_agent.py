@@ -56,10 +56,15 @@ class BaseAgent(object):
     def _get_index_utils(space):
         sample = space.sample()
         if type(sample) == np.ndarray:
-            n_dim = sample.shape[0]
-            assert sample.shape == (n_dim,)
-            sample_type = type(sample[0])
-            sample_slice = slice(None)
+            if len(sample.shape) == 1:
+                n_dim = sample.shape[0]
+                assert sample.shape == (n_dim,)
+                sample_type = type(sample[0])
+                sample_slice = slice(None)
+            else:
+                n_dim = None
+                sample_type = None
+                sample_slice = None
         elif type(sample) == int:
             n_dim = 1
             sample_type = int

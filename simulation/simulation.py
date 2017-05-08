@@ -87,10 +87,6 @@ class Simulation(object):
                 _ = self.agent.act(observation, reward, done)
                 break
 
-        self.logger.debug('\nobservation_path:\n{}'.format(self.agent.observation_path.round(2)))
-        self.logger.debug('\naction_path:\n{}'.format(self.agent.action_path.round(2)))
-        self.logger.debug('\nreward_path:\n{}'.format(self.agent.reward_path.round(2)))
-
     def simulate_episodes(self, n_episodes=2):
         for idx_episode in range(n_episodes):
             self.logger.debug('\nEpisode {}:'.format(idx_episode))

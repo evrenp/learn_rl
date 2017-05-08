@@ -8,6 +8,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import SGDRegressor
 from sklearn.kernel_approximation import RBFSampler
 
+# ToDo: refactor for specifc agent
+# ToDo: make feature creation generic to adopt to different envs
 
 class FunctionApproximationAgent(BaseAgent):
     parameters = ['epsilon', 'gamma', 'feature_creation']
