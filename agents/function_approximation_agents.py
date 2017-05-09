@@ -8,6 +8,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import SGDRegressor
 from sklearn.kernel_approximation import RBFSampler
 
+
 # ToDo: refactor for specifc agent
 # ToDo: make feature creation generic to adopt to different envs
 
@@ -18,6 +19,7 @@ class SarsaMaxFunctionApproximationAgent(BaseAgent):
 
     def __init__(self,
                  feature_creation='scaling_and_rbf',
+                 save_monitor=False,
                  **kwargs
                  ):
         """Init
@@ -36,6 +38,10 @@ class SarsaMaxFunctionApproximationAgent(BaseAgent):
         self.scaler, self.featurizer = self._get_scaler_and_featurizer()
         self.estimators = self._get_estimators()
         self.q_values_of_possible_actions_at_t = np.zeros(self.n_actions)
+
+        self.save_monitor = save_monitor
+        if save_monitor:
+            self.monitor = {'features': [], 'td_target': [], 'action': [], 'y_hat': []}
 
     def _get_scaler_and_featurizer(self):
         scaler = StandardScaler(copy=True, with_mean=True, with_std=True)
@@ -90,6 +96,12 @@ class SarsaMaxFunctionApproximationAgent(BaseAgent):
             # partial fit
             action_t_minus_1 = self.actions[self.t - 1]
             self.estimators[action_t_minus_1].partial_fit(X=features_at_t_minus_1, y=np.array([td_target]))
+
+            if self.save_monitor:
+                self.monitor['features'].append(features_at_t_minus_1)
+                self.monitor['action'].append(action_t_minus_1)
+                self.monitor['td_target'].append(td_target)
+                self.monitor['y_hat'].append(self.estimators[action_t_minus_1].predict(X=features_at_t_minus_1))
 
     def select_action_at_t(self):
         return self.select_epsilon_greedy_action_at_t(
