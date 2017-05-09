@@ -15,10 +15,9 @@ from sklearn.kernel_approximation import RBFSampler
 # TODO: make neural net version
 
 class SarsaMaxFunctionApproximationAgent(BaseAgent):
-    parameters = ['epsilon', 'gamma', 'feature_creation']
+    parameters = ['epsilon', 'gamma']
 
     def __init__(self,
-                 feature_creation='scaling_and_rbf',
                  save_monitor=False,
                  **kwargs
                  ):
@@ -33,8 +32,6 @@ class SarsaMaxFunctionApproximationAgent(BaseAgent):
         assert self.observation_space.__class__.__name__ == 'Box', 'Only works for Box observation space'
         assert len(self.observation_space.sample().shape) == 1
 
-        assert feature_creation in ['scaling', 'scaling_and_rbf']
-        self.feature_creation = feature_creation
         self.scaler, self.featurizer = self._get_scaler_and_featurizer()
         self.estimators = self._get_estimators()
         self.q_values_of_possible_actions_at_t = np.zeros(self.n_actions)
@@ -72,8 +69,7 @@ class SarsaMaxFunctionApproximationAgent(BaseAgent):
 
     def observation_2_features(self, observation):
         features = self.scaler.transform(X=observation.reshape((1, -1)))
-        if self.feature_creation == 'scaling_and_rbf':
-            features = self.featurizer.transform(features)
+        features = self.featurizer.transform(features)
         return features
 
     def predict_q_value(self, observation, action):
