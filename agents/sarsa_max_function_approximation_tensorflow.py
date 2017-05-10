@@ -32,7 +32,7 @@ class SarsaMaxFunctionApproximationAgentTF(SarsaMaxFunctionApproximationAgentSkl
 
 
 class SingleActionGraph(object):
-    """Mimicks the sklearn estimator for SGD regression used in sklearn version."""
+    """Mimics the sklearn estimator for SGD regression used in sklearn version."""
 
     def __init__(self, session, action, n_features):
         self.session = session
@@ -64,8 +64,9 @@ if __name__ == '__main__':
     agent = SarsaMaxFunctionApproximationAgentTF(env=env, epsilon=0.5, gamma=1.0)
     with agent.session:
         agent.tf_init_at_session_start()
-        simulation = Simulation(env=env, agent=agent, logger_level='INFO', is_render=False, max_n_steps=5000)
-        simulation.simulate_episodes(n_episodes=10)
+        agent = SarsaMaxFunctionApproximationAgentSklearn(env=env, epsilon=0.5, gamma=1.0)
+        simulation = Simulation(env=env, agent=agent, is_render=False)
+        simulation.simulate_episodes(n_episodes=20)
         simulation.is_render = True
         simulation.simulate_episodes(n_episodes=5)
         simulation.terminate()

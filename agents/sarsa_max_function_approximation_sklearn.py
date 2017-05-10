@@ -1,6 +1,7 @@
 import numpy as np
-
+from gym.envs import make
 from agents.base_agent import BaseAgent
+from simulation.simulation import Simulation
 
 from sklearn.pipeline import FeatureUnion
 from sklearn.preprocessing import StandardScaler
@@ -13,7 +14,6 @@ class SarsaMaxFunctionApproximationAgentSklearn(BaseAgent):
     parameters = ['epsilon', 'gamma']
 
     def __init__(self,
-                 save_monitor=False,
                  **kwargs
                  ):
         """Init
@@ -36,11 +36,6 @@ class SarsaMaxFunctionApproximationAgentSklearn(BaseAgent):
 
         # caching variable
         self.q_values_of_possible_actions_at_t = np.zeros(self.n_actions)
-
-        # monitoring
-        self.save_monitor = save_monitor
-        if save_monitor:
-            self.monitor = {'features': [], 'td_target': [], 'action': [], 'y_hat': []}
 
     def _get_scaler_and_featurizer(self):
         scaler = StandardScaler(copy=True, with_mean=True, with_std=True)
@@ -93,12 +88,17 @@ class SarsaMaxFunctionApproximationAgentSklearn(BaseAgent):
             action_t_minus_1 = self.actions[self.t - 1]
             self.estimators[action_t_minus_1].partial_fit(X=features_at_t_minus_1, y=np.array([td_target]))
 
-            if self.save_monitor:
-                self.monitor['features'].append(features_at_t_minus_1)
-                self.monitor['action'].append(action_t_minus_1)
-                self.monitor['td_target'].append(td_target)
-                self.monitor['y_hat'].append(self.estimators[action_t_minus_1].predict(X=features_at_t_minus_1))
-
     def select_action_at_t(self):
         return self.select_epsilon_greedy_action_at_t(
             q_values_of_possible_actions_at_t=self.q_values_of_possible_actions_at_t)
+
+
+if __name__ == '__main__':
+    env = make('MountainCar-v0')
+    env._max_episode_steps = 400
+    agent = SarsaMaxFunctionApproximationAgentSklearn(env=env, epsilon=0.5, gamma=1.0)
+    simulation = Simulation(env=env, agent=agent, is_render=False)
+    simulation.simulate_episodes(n_episodes=20)
+    simulation.is_render = True
+    simulation.simulate_episodes(n_episodes=5)
+    simulation.terminate()
