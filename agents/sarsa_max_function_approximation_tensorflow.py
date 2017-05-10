@@ -48,7 +48,7 @@ class SingleActionGraph(object):
             optimizer = tf.train.GradientDescentOptimizer(0.01)
             self.train = optimizer.minimize(self.loss, name='train')
 
-            self.init_op = tf.initialize_all_variables()
+            self.init_op = tf.global_variables_initializer()
 
     def predict(self, X):
         y_hat = np.array([self.session.run(self.y_hat, {self.features: X})[0, 0]])  # np.array because of sklearn format
