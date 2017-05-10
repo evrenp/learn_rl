@@ -9,12 +9,7 @@ from sklearn.linear_model import SGDRegressor
 from sklearn.kernel_approximation import RBFSampler
 
 
-# ToDo: refactor for specifc agent
-# ToDo: make feature creation generic to adopt to different envs
-
-# TODO: make neural net version
-
-class SarsaMaxFunctionApproximationAgent(BaseAgent):
+class SarsaMaxFunctionApproximationAgentSklearn(BaseAgent):
     parameters = ['epsilon', 'gamma']
 
     def __init__(self,
@@ -26,16 +21,23 @@ class SarsaMaxFunctionApproximationAgent(BaseAgent):
         Args:
             kwargs (dict): kwargs of BaseAgent
         """
-        super(SarsaMaxFunctionApproximationAgent, self).__init__(**kwargs)
+        super(SarsaMaxFunctionApproximationAgentSklearn, self).__init__(**kwargs)
 
         assert self.action_space.__class__.__name__ == 'Discrete', 'Only works for discrete action space'
         assert self.observation_space.__class__.__name__ == 'Box', 'Only works for Box observation space'
         assert len(self.observation_space.sample().shape) == 1
 
+        # feature creation
         self.scaler, self.featurizer = self._get_scaler_and_featurizer()
+        self.n_features = self.observation_2_features(observation=self.observation_space.sample()).shape[1]
+
+        # estimators per action
         self.estimators = self._get_estimators()
+
+        # caching variable
         self.q_values_of_possible_actions_at_t = np.zeros(self.n_actions)
 
+        # monitoring
         self.save_monitor = save_monitor
         if save_monitor:
             self.monitor = {'features': [], 'td_target': [], 'action': [], 'y_hat': []}
@@ -44,8 +46,6 @@ class SarsaMaxFunctionApproximationAgent(BaseAgent):
         scaler = StandardScaler(copy=True, with_mean=True, with_std=True)
         observations = np.array([self.observation_space.sample() for _ in range(10000)])
         scaler.fit(X=observations)
-        # Used to converte a state to a featurizes represenation.
-        # We use RBF kernels with different variances to cover different parts of the space
         featurizer = FeatureUnion([
             ("rbf1", RBFSampler(gamma=5.0, n_components=100)),
             ("rbf2", RBFSampler(gamma=2.0, n_components=100)),
