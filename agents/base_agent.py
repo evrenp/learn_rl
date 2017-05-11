@@ -13,6 +13,7 @@ class BaseAgent(object):
                  epsilon=0.5,
                  gamma=0.8,
                  max_n_steps=10000,
+                 n_past_episodes_in_memory=0,
                  ):
         """Init
 
@@ -21,10 +22,12 @@ class BaseAgent(object):
             epsilon (float): epsilon in epsilon-greedy action selection
             gamma (float): discount factor for future rewards
             max_n_steps (int): maximum number of steps per episode
+            n_past_episodes_in_memory (int): number of past episodes in addition to current one to be kept in memory
         """
         self.epsilon = epsilon
         self.gamma = gamma
         self.max_n_steps = max_n_steps
+        self.n_past_episodes_in_memory = n_past_episodes_in_memory
 
         self.observation_space = env.observation_space
         self.action_space = env.action_space
@@ -33,7 +36,13 @@ class BaseAgent(object):
         self.observations, self.actions, self.rewards = self._init_path_variables()
         self.t = None
 
+        # memory of path_variables
+        self.past_observations = []
+        self.past_actions = []
+        self.past_rewards = []
+
     def _init_path_variables(self):
+        """Init path variables of current episode"""
         observations = self.max_n_steps * [None]
         actions = self.max_n_steps * [None]
         rewards = np.nan * np.zeros(self.max_n_steps)
@@ -107,6 +116,19 @@ class BaseAgent(object):
 
             # optional
             self.learn_at_last_t_of_episode()
+
+            # write path_variables to memory
+            if self.n_past_episodes_in_memory > 0:
+                self.past_observations.append(self.observations)
+                self.past_actions.append(self.actions)
+                self.past_rewards.append(self.rewards)
+
+                # cut memory
+                if len(self.past_observations) > self.n_past_episodes_in_memory:
+                    del self.past_observations[0]
+                    del self.past_actions[0]
+                    del self.past_rewards[0]
+
 
         return self.actions[self.t]
 
