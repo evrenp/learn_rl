@@ -48,6 +48,7 @@ class SingleActionGraph(object):
             optimizer = tf.train.GradientDescentOptimizer(0.01)
             self.train = optimizer.minimize(self.loss, name='train')
 
+            # init_op per scope
             self.init_op = tf.global_variables_initializer()
 
     def predict(self, X):
