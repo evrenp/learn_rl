@@ -1,3 +1,4 @@
+import os
 import logging
 import sys
 from itertools import product
@@ -9,6 +10,9 @@ from gym import undo_logger_setup
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 
+DATA_PATH = os.path.join(os.getenv('HOME'), 'reinforcement_learning')
+if not os.path.exists(DATA_PATH):
+    os.makedirs(DATA_PATH)
 
 def get_logger(level, name):
     assert level in ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'NOTSET']
@@ -30,6 +34,9 @@ class Simulation(object):
             logger_level='INFO',
             max_n_steps=10000,
             is_render=False,
+            save_summary=False,
+            episode_interval_save_summary=10,
+            run_id_suffix='0'
     ):
         """Init
 
@@ -38,6 +45,7 @@ class Simulation(object):
             agent (ai_gym_experiments.agents.base_agent.BaseAgent): agent
             logger_level (str): logger level
             max_n_steps (int): max number of steps
+            is_render (bool): whether or not to render
             is_render (bool): whether or not to render
         """
         self.logger = get_logger(level=logger_level, name='Simulation')
@@ -50,6 +58,9 @@ class Simulation(object):
         self.is_render = is_render
         self.df_summary = pd.DataFrame(columns=['n_steps', 'total_reward'], dtype=float)
         self.df_summary.index.name = 'episode_idx'
+        self.save_summary = save_summary
+        self.episode_interval_save_summary = episode_interval_save_summary
+        self.summary_path = os.path.join(DATA_PATH, 'df_summary_{}_{}'.format(self.agent.get_id(), run_id_suffix))
 
     def simulate_single_episode(self):
 
@@ -87,6 +98,10 @@ class Simulation(object):
 
         # add to df_summary
         self.df_summary.loc[len(self.df_summary)] = [len(self.agent.rewards), np.nansum(self.agent.rewards)]
+
+        if self.save_summary and (len(self.df_summary) % self.episode_interval_save_summary == 0):
+            self.df_summary.to_pickle(self.summary_path)
+            self.logger.debug('Saved summary.')
 
     def simulate_episodes(self, n_episodes=2):
         for idx_episode in range(n_episodes):

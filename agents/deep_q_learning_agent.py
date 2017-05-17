@@ -270,7 +270,7 @@ def run_agent_and_render():
 def run_agent_and_make_summary():
     session = tf.Session(graph=tf.get_default_graph())
     env = make("Breakout-v0")
-    # env._max_episode_steps = 10
+    env._max_episode_steps = 10
     agent = DeepQLearningAgent(
         session=session,
         env=env,
@@ -284,13 +284,12 @@ def run_agent_and_make_summary():
 
     with agent.session:
         agent.tf_init_at_session_start()
-        simulation = Simulation(env=env, agent=agent, is_render=False, logger_level='DEBUG')
-        for _ in range(100):
-            simulation.simulate_episodes(n_episodes=10)
-            simulation.df_summary.to_pickle(os.path.join(DATA_PATH, 'df_summary.pkl'))
+        simulation = Simulation(env=env, agent=agent, is_render=False, logger_level='DEBUG', save_summary=True,
+                                episode_interval_save_summary=2)
+        simulation.simulate_episodes(n_episodes=10)
         simulation.terminate()
 
-    df_summary = pd.read_pickle(os.path.join(DATA_PATH, 'df_summary.pkl'))
+    df_summary = pd.read_pickle(simulation.summary_path)
     df_summary.plot(subplots=True)
     plt.show()
 
