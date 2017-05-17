@@ -10,6 +10,18 @@ from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 
 
+def get_logger(level, name):
+    assert level in ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'NOTSET']
+    undo_logger_setup()
+    logger = logging.getLogger(name)
+    formatter = logging.Formatter('%(message)s')
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(level)
+    return logger
+
+
 class Simulation(object):
     def __init__(
             self,
@@ -28,7 +40,7 @@ class Simulation(object):
             max_n_steps (int): max number of steps
             is_render (bool): whether or not to render
         """
-        self.logger = self._get_logger(level=logger_level)
+        self.logger = get_logger(level=logger_level, name='Simulation')
 
         # dynamic variables
         self.env = env
@@ -41,19 +53,6 @@ class Simulation(object):
             self.logger.warning('agent.max_n_steps has been overwritten by simulation.')
 
         self.is_render = is_render
-
-
-    @staticmethod
-    def _get_logger(level):
-        assert level in ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'NOTSET']
-        undo_logger_setup()
-        logger = logging.getLogger()
-        formatter = logging.Formatter('%(message)s')
-        handler = logging.StreamHandler(sys.stderr)
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        logger.setLevel(level)
-        return logger
 
     def simulate_single_episode(self):
 
@@ -89,7 +88,7 @@ class Simulation(object):
 
     def simulate_episodes(self, n_episodes=2):
         for idx_episode in range(n_episodes):
-            self.logger.debug('\nEpisode {}:'.format(idx_episode))
+            self.logger.debug('\nSimulating episode {}...'.format(idx_episode))
             self.simulate_single_episode()
 
     def terminate(self):

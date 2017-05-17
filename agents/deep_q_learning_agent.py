@@ -1,10 +1,11 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from random import sample
 import tensorflow as tf
 from gym.envs import make
 from agents.base_agent import BaseAgent
-from simulation.simulation import Simulation
+from simulation.simulation import Simulation, get_logger
 
 ACTION_2_NAME = {0: 'noop', 1: 'fire', 2: 'right', 3: 'left', 4: 'fire_and_right', 5: 'fire_and_left'}
 VALID_ACTIONS = [0, 1, 2, 3]
@@ -102,9 +103,21 @@ class PreProcessor(object):
 
 
 class DeepQLearningAgent(BaseAgent):
-    def __init__(self, session, **kwargs):
+    def __init__(
+            self,
+            session,
+            n_samples_replay_memory=300,  # 500000
+            n_batch_samples=32,
+            copy_interval=100,  # 10000
+            logger_level='INFO',
+            **kwargs
+    ):
 
+        self.logger = get_logger(level=logger_level, name='DeepQLearningAgent')
         self.session = session
+        self.n_samples_replay_memory = n_samples_replay_memory
+        self.n_batch_samples = n_batch_samples
+        self.copy_interval = copy_interval
         self.pre_processor = PreProcessor(session=self.session)
         self.q_estimator = Estimator(session=self.session, scope='q')
         self.td_target_estimator = Estimator(session=self.session, scope='td_target')
@@ -117,67 +130,133 @@ class DeepQLearningAgent(BaseAgent):
         # caching variable
         self.q_values_of_possible_actions_at_t = np.zeros(self.n_actions)
 
+        self.replay_memory = []
+
+        self.total_t = 0
+
     def tf_init_at_session_start(self):
         for init_op in [self.pre_processor.init_op, self.q_estimator.init_op, self.td_target_estimator.init_op]:
             self.session.run(init_op)
 
-    def predict_q_values_of_possible_actions_at_t(self, observation_list):
+    def predict_q_values_of_possible_actions_at_t(self, observation_at_t_list):
         """Predicts with td_target_estimator
 
         Args:
-            observation_list (list): list of single-sample observations at t-1
+            observation_at_t_list (list): list of single-sample observations at t
 
         Returns:
             predictions_for_all_actions (np.array of shape (n_samples_per_patch, n_actions))
         """
 
-        network_input = self.pre_processor.observation_list_2_network_input(observation_list=observation_list)
+        network_input = self.pre_processor.observation_list_2_network_input(observation_list=observation_at_t_list)
 
         predictions_for_all_actions = self.session.run(self.td_target_estimator.predictions_for_all_actions,
                                                        {self.td_target_estimator.network_input: network_input})
 
         return predictions_for_all_actions
 
-    def fit(self, observation_list, action_list, td_target_list):
-        """Fits q_estimator"""
+    def fit(self, observation_at_t_minus_1_list, action_at_t_minus_1_list, td_target_at_t_list):
+        """Fits q_estimator
 
-        network_input = self.pre_processor.observation_list_2_network_input(observation_list=observation_list)
+        Args:
+            observation_at_t_minus_1_list (list): list of single sample observations at t-1  Rename to observation_at_t_minus_1_list
+        """
 
-        feed_dict = {self.q_estimator.network_input: network_input, self.q_estimator.target: td_target_list,
-                     self.q_estimator.action: action_list}
+        network_input = self.pre_processor.observation_list_2_network_input(
+            observation_list=observation_at_t_minus_1_list)
+
+        feed_dict = {self.q_estimator.network_input: network_input, self.q_estimator.target: td_target_at_t_list,
+                     self.q_estimator.action: action_at_t_minus_1_list}
         _, loss = self.session.run([self.q_estimator.train_op, self.q_estimator.loss], feed_dict)
         return loss
 
     def learn_at_t_before_action_selection(self):
+
         if self.t > 0:
 
-            # TODO: add actual batch-learning schedule
-
-            # just a test
+            # needed in select_action_at_t
             self.q_values_of_possible_actions_at_t = self.predict_q_values_of_possible_actions_at_t(
-                observation_list=[self.observations[self.t - 1]])[0, :]
+                observation_at_t_list=[self.observations[self.t]])[0, :]
 
-            # td_target
-            td_target = self.rewards[self.t] + self.gamma * np.max(self.q_values_of_possible_actions_at_t)
+            # always append replay memory
+            self.replay_memory.append((
+                self.observations[self.t - 1],
+                self.observations[self.t],
+                self.actions[self.t - 1],
+                self.rewards[self.t]
+            ))
 
-            # test fit for single-sample batch
-            loss = self.fit(observation_list=[self.observations[self.t - 1]], action_list=[self.actions[self.t - 1]],
-                            td_target_list=[td_target])
+            # learn only if replay memory has desired size
+            if len(self.replay_memory) == self.n_samples_replay_memory + 1:
+                self.replay_memory.pop(0)
+
+                training_batch = sample(self.replay_memory, self.n_batch_samples)
+
+                observation_at_t_minus_1_list, observation_at_t_list, action_at_t_minus_1_list, reward_at_t_list = map(
+                    list, zip(*training_batch))
+
+                q_values_of_possible_actions_at_t_array = self.predict_q_values_of_possible_actions_at_t(
+                    observation_at_t_list=observation_at_t_list)
+
+                td_target_at_t_list = list(np.array(reward_at_t_list) + self.gamma * np.max(
+                    q_values_of_possible_actions_at_t_array, axis=1))
+
+                loss = self.fit(
+                    observation_at_t_minus_1_list=observation_at_t_minus_1_list,
+                    action_at_t_minus_1_list=action_at_t_minus_1_list,
+                    td_target_at_t_list=td_target_at_t_list
+                )
+
+                # update the target estimator
+                if self.total_t % self.copy_interval == 0:
+                    self.copy_model_parameters()
+                    self.logger.debug('Copied model parameters from q_estimator to td_target_estimator network.')
+                    self.logger.debug('Loss={:.4f} at total_t={}'.format(loss, self.total_t))
+
+        self.total_t += 1
 
     def select_action_at_t(self):
         return self.select_epsilon_greedy_action_at_t(
             q_values_of_possible_actions_at_t=self.q_values_of_possible_actions_at_t)
 
+    def copy_model_parameters(self):
+        q_estimator_params = [t for t in tf.trainable_variables() if t.name.startswith(self.q_estimator.scope)]
+        q_estimator_params = sorted(q_estimator_params, key=lambda v: v.name)
+        td_target_estimator_params = [t for t in tf.trainable_variables() if
+                                      t.name.startswith(self.td_target_estimator.scope)]
+        td_target_estimator_params = sorted(td_target_estimator_params, key=lambda v: v.name)
+        update_ops = []
+        for q_estimator_param, td_estimator_param in zip(q_estimator_params, td_target_estimator_params):
+            op = td_estimator_param.assign(q_estimator_param)
+            update_ops.append(op)
+        self.session.run(update_ops)
+
 
 def run_agent():
     session = tf.Session(graph=tf.get_default_graph())
     env = make("Breakout-v0")
-    env._max_episode_steps = 40
-    agent = DeepQLearningAgent(session=session, env=env, epsilon=0.5, gamma=1.0)
+    # env._max_episode_steps = 500
+    agent = DeepQLearningAgent(
+        session=session,
+        env=env,
+        epsilon=0.5,
+        gamma=0.99,
+        n_samples_replay_memory=2000,
+        n_batch_samples=32,
+        copy_interval=1000,
+        logger_level='DEBUG'
+    )
+
     with agent.session:
         agent.tf_init_at_session_start()
-        simulation = Simulation(env=env, agent=agent, is_render=False)
-        simulation.simulate_episodes(n_episodes=2)
+        simulation = Simulation(env=env, agent=agent, is_render=False, logger_level='DEBUG')
+
+        for _ in range(100):
+            simulation.simulate_episodes(n_episodes=20)
+            simulation.is_render = True
+            simulation.simulate_episodes(n_episodes=3)
+            simulation.is_render = False
+
         simulation.terminate()
 
 
