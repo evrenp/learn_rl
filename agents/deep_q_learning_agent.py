@@ -1,11 +1,16 @@
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from random import sample
 import tensorflow as tf
 from gym.envs import make
 from agents.base_agent import BaseAgent
 from simulation.simulation import Simulation, get_logger
+
+DATA_PATH = os.path.join(os.getenv('HOME'), 'reinforcement_learning')
+if not os.path.exists(DATA_PATH):
+    os.makedirs(DATA_PATH)
 
 ACTION_2_NAME = {0: 'noop', 1: 'fire', 2: 'right', 3: 'left', 4: 'fire_and_right', 5: 'fire_and_left'}
 VALID_ACTIONS = [0, 1, 2, 3]
@@ -195,9 +200,11 @@ class DeepQLearningAgent(BaseAgent):
                 observation_at_t_minus_1_list, observation_at_t_list, action_at_t_minus_1_list, reward_at_t_list = map(
                     list, zip(*training_batch))
 
+                # TODO: this could be cached as long as td_target_estimator is not updated
                 q_values_of_possible_actions_at_t_array = self.predict_q_values_of_possible_actions_at_t(
                     observation_at_t_list=observation_at_t_list)
 
+                # TODO: ...as well
                 td_target_at_t_list = list(np.array(reward_at_t_list) + self.gamma * np.max(
                     q_values_of_possible_actions_at_t_array, axis=1))
 
@@ -232,7 +239,7 @@ class DeepQLearningAgent(BaseAgent):
         self.session.run(update_ops)
 
 
-def run_agent():
+def run_agent_and_render():
     session = tf.Session(graph=tf.get_default_graph())
     env = make("Breakout-v0")
     # env._max_episode_steps = 500
@@ -260,5 +267,33 @@ def run_agent():
         simulation.terminate()
 
 
+def run_agent_and_make_summary():
+    session = tf.Session(graph=tf.get_default_graph())
+    env = make("Breakout-v0")
+    # env._max_episode_steps = 10
+    agent = DeepQLearningAgent(
+        session=session,
+        env=env,
+        epsilon=0.2,
+        gamma=0.99,
+        n_samples_replay_memory=2000,
+        n_batch_samples=32,
+        copy_interval=1000,
+        logger_level='DEBUG'
+    )
+
+    with agent.session:
+        agent.tf_init_at_session_start()
+        simulation = Simulation(env=env, agent=agent, is_render=False, logger_level='DEBUG')
+        for _ in range(100):
+            simulation.simulate_episodes(n_episodes=10)
+            simulation.df_summary.to_pickle(os.path.join(DATA_PATH, 'df_summary.pkl'))
+        simulation.terminate()
+
+    df_summary = pd.read_pickle(os.path.join(DATA_PATH, 'df_summary.pkl'))
+    df_summary.plot(subplots=True)
+    plt.show()
+
+
 if __name__ == '__main__':
-    run_agent()
+    run_agent_and_make_summary()

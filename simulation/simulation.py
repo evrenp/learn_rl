@@ -41,18 +41,15 @@ class Simulation(object):
             is_render (bool): whether or not to render
         """
         self.logger = get_logger(level=logger_level, name='Simulation')
-
-        # dynamic variables
         self.env = env
         self.agent = agent
-
         self.max_n_steps = max_n_steps
-        # overwrite agent.max_n_steps
         if hasattr(agent, 'max_n_steps') and (self.agent.max_n_steps < self.max_n_steps):
             self.agent.max_n_steps = self.max_n_steps
             self.logger.warning('agent.max_n_steps has been overwritten by simulation.')
-
         self.is_render = is_render
+        self.df_summary = pd.DataFrame(columns=['n_steps', 'total_reward'], dtype=float)
+        self.df_summary.index.name = 'episode_idx'
 
     def simulate_single_episode(self):
 
@@ -86,6 +83,11 @@ class Simulation(object):
                 _ = self.agent.act(observation, reward, done)
                 break
 
+        assert t + 2 == len(self.agent.rewards)
+
+        # add to df_summary
+        self.df_summary.loc[len(self.df_summary)] = [len(self.agent.rewards), np.nansum(self.agent.rewards)]
+
     def simulate_episodes(self, n_episodes=2):
         for idx_episode in range(n_episodes):
             self.logger.debug('\nSimulating episode {}...'.format(idx_episode))
@@ -95,22 +97,12 @@ class Simulation(object):
         self.env.close()
 
 
-def _parallel_function(env, iter_idx, n_episodes, constructor, kwargs):
+def _parallel_function(env, n_episodes, constructor, kwargs):
     agent = constructor(**kwargs)
-    agent_id = agent.get_id()
     simulation = Simulation(env=env, agent=agent)
-
-    index = pd.MultiIndex.from_product([[agent_id], [iter_idx], range(n_episodes)],
-                                       names=['agent_id', 'iter_idx', 'episode_idx'])
-    df = pd.DataFrame(columns=['steps_per_episode', 'reward_per_episode', 'reward_per_step'], index=index, dtype=float)
-
-    for episode_idx in range(n_episodes):
-        simulation.simulate_single_episode()
-        df.loc[(agent_id, iter_idx, episode_idx), 'steps_per_episode'] = len(simulation.agent.rewards)
-        df.loc[(agent_id, iter_idx, episode_idx), 'reward_per_episode'] = np.nansum(simulation.agent.rewards)
-        df.loc[(agent_id, iter_idx, episode_idx), 'reward_per_step'] = np.nanmean(simulation.agent.rewards)
+    simulation.simulate_episodes(n_episodes=n_episodes)
     simulation.terminate()
-    return df
+    return simulation.df_summary
 
 
 def compare_agents(env, constructor_kwargs_list, n_iter=5, n_episodes=100, n_jobs=1):
@@ -135,17 +127,25 @@ def compare_agents(env, constructor_kwargs_list, n_iter=5, n_episodes=100, n_job
     """
 
     args = product(range(n_iter), constructor_kwargs_list)
-    results = Parallel(n_jobs=n_jobs)(
-        delayed(_parallel_function)(env, iter_idx, n_episodes, constructor, kwargs) for iter_idx, (constructor, kwargs)
+    df_summary_list = Parallel(n_jobs=n_jobs)(
+        delayed(_parallel_function)(env, n_episodes, constructor, kwargs) for iter_idx, (constructor, kwargs)
         in args)
-    df = pd.concat(results, axis=0, ignore_index=False)
+
+    for df_summary_idx, (args, df_summary) in enumerate(
+            zip(product(range(n_iter), constructor_kwargs_list), df_summary_list)):
+        iter_idx, (constructor, kwargs) = args
+        df_summary['agent_id'] = constructor(**kwargs).get_id()
+        df_summary['iter_idx'] = iter_idx
+        df_summary.set_index(keys=['agent_id', 'iter_idx'], append=True, inplace=True)
+
+    df = pd.concat(df_summary_list, axis=0, ignore_index=False)
 
     # mean over iterations
     df = df.groupby(level=['agent_id', 'episode_idx']).mean()
 
     # make plot
-    fig, axes = plt.subplots(3, 1)
-    for ax_idx, col in enumerate(['steps_per_episode', 'reward_per_episode', 'reward_per_step']):
+    fig, axes = plt.subplots(2, 1)
+    for ax_idx, col in enumerate(['n_steps', 'total_reward']):
         df.reset_index().pivot('episode_idx', 'agent_id', col).rolling(center=True,
                                                                        window=int(n_episodes * 0.1) + 1).mean().plot(
             ax=axes[ax_idx])

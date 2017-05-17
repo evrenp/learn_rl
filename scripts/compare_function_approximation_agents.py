@@ -10,8 +10,8 @@ env._max_episode_steps = 400
 
 constructor_kwargs_list = [
     (RandomAgent, dict(env=env)),
-    (SarsaMaxFunctionApproximationAgentSklearn, dict(env=env, epsilon=0.5, gamma=1.0, feature_creation='scaling')),
-    (SarsaMaxFunctionApproximationAgentSklearn, dict(env=env, epsilon=0.5, gamma=1.0, feature_creation='scaling_and_rbf')),
+    (SarsaMaxFunctionApproximationAgentSklearn, dict(env=env, epsilon=0.5, gamma=1.0)),
+    (SarsaMaxFunctionApproximationAgentSklearn, dict(env=env, epsilon=0.5, gamma=1.0)),
 ]
 df, fig = compare_agents(env=env, constructor_kwargs_list=constructor_kwargs_list, n_iter=1, n_episodes=100,
                          n_jobs=-1)
