@@ -10,7 +10,7 @@ from gym import undo_logger_setup
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 
-DATA_PATH = os.path.join(os.getenv('HOME'), 'reinforcement_learning')
+DATA_PATH = os.path.join(os.getenv('HOME'), 'data', 'reinforcement_learning')
 if not os.path.exists(DATA_PATH):
     os.makedirs(DATA_PATH)
 

@@ -8,10 +8,6 @@ from gym.envs import make
 from agents.base_agent import BaseAgent
 from simulation.simulation import Simulation, get_logger
 
-DATA_PATH = os.path.join(os.getenv('HOME'), 'reinforcement_learning')
-if not os.path.exists(DATA_PATH):
-    os.makedirs(DATA_PATH)
-
 ACTION_2_NAME = {0: 'noop', 1: 'fire', 2: 'right', 3: 'left', 4: 'fire_and_right', 5: 'fire_and_left'}
 VALID_ACTIONS = [0, 1, 2, 3]
 N_ACTIONS = 4
@@ -267,32 +263,5 @@ def run_agent_and_render():
         simulation.terminate()
 
 
-def run_agent_and_make_summary():
-    session = tf.Session(graph=tf.get_default_graph())
-    env = make("Breakout-v0")
-    env._max_episode_steps = 10
-    agent = DeepQLearningAgent(
-        session=session,
-        env=env,
-        epsilon=0.2,
-        gamma=0.99,
-        n_samples_replay_memory=2000,
-        n_batch_samples=32,
-        copy_interval=1000,
-        logger_level='DEBUG'
-    )
-
-    with agent.session:
-        agent.tf_init_at_session_start()
-        simulation = Simulation(env=env, agent=agent, is_render=False, logger_level='DEBUG', save_summary=True,
-                                episode_interval_save_summary=2)
-        simulation.simulate_episodes(n_episodes=10)
-        simulation.terminate()
-
-    df_summary = pd.read_pickle(simulation.summary_path)
-    df_summary.plot(subplots=True)
-    plt.show()
-
-
 if __name__ == '__main__':
-    run_agent_and_make_summary()
+    run_agent_and_render()

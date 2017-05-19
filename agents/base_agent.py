@@ -1,4 +1,5 @@
 import numpy as np
+from collections import OrderedDict
 
 
 class BaseAgent(object):
@@ -64,7 +65,8 @@ class BaseAgent(object):
         return n_states, n_actions, q
 
     def get_parameters(self):
-        return {key: getattr(self, key) for key in self.parameters}
+        d = {key: getattr(self, key) for key in self.parameters}
+        return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
 
     def get_parameters_as_str(self):
         return ', '.join(['{}={}'.format(k, v) for k, v in self.get_parameters().items()])
@@ -128,7 +130,6 @@ class BaseAgent(object):
                     del self.past_observations[0]
                     del self.past_actions[0]
                     del self.past_rewards[0]
-
 
         return self.actions[self.t]
 
